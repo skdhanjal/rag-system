@@ -1,0 +1,7 @@
+[project]
+name = "rag-system"
+version = "0.1.0"
+description = "RAG system for ingesting pdf files and ansering questions based on them"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
