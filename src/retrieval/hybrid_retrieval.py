@@ -1,0 +1,232 @@
+import sys
+import torch
+from pathlib import Path
+from typing import List, Dict, Any, Tuple
+from dotenv import load_dotenv
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
+from sentence_transformers import SentenceTransformer, CrossEncoder
+
+# Load environment variables at the top
+load_dotenv(override=True)
+
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.append(str(project_root))
+
+from src.helpers.llm_helper import call_configured_llm
+from src.prompts.prompts import get_academic_system_instruction
+import src.config.settings as config
+from src.router.query_router import QueryRouter
+
+
+class HybridRetriever:
+    def __init__(self):
+        print("=== INITIALIZING CONFIG-DRIVEN RETRIEVAL ENGINE ===")
+        
+        # 1. Initialize Qdrant Client 
+        if getattr(config, "QDRANT_URL", None):
+            self.client = QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY)
+        else:
+            self.client = QdrantClient(path=getattr(config, "QDRANT_LOCATION", "./qdrant_data"))
+            
+        self.router = QueryRouter()
+        self.device = config.EMBEDDING_DEVICE
+        self.torch_dtype = torch.float32
+
+        # 3. Load Configured Models
+        print(f"Loading Dense Embedding Model: {config.EMBEDDING_MODEL_NAME}...")
+        
+        self.embedding_model = SentenceTransformer(
+            config.EMBEDDING_MODEL_NAME, 
+            device=self.device,
+            model_kwargs={"torch_dtype": self.torch_dtype} if self.device == "cuda" else {}
+        )
+        
+        print(f"Loading Cross-Encoder Reranker: {config.RERANKER_MODEL_NAME}...")
+        
+        self.reranker_model = CrossEncoder(
+            config.RERANKER_MODEL_NAME, 
+            device=self.device,
+            default_activation_function=torch.nn.Identity()
+        )
+        print("Hybrid Retrieval Initialized.")
+
+    def _get_neighbor_chunk(self, collection_name: str, paper_name: str, target_chunk_num: int) -> str:
+        """Queries Qdrant using root payload field conditions to find sequential neighbors."""
+        if target_chunk_num <= 0:
+            return ""
+            
+        results, _ = self.client.scroll(
+            collection_name=collection_name,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(key="paper_name", match=models.MatchValue(value=paper_name)),
+                    models.FieldCondition(key="chunk_number", match=models.MatchValue(value=target_chunk_num))
+                ]
+            ),
+            limit=1,
+            with_payload=True,
+            with_vectors=False
+        )
+        return results[0].payload.get("text", "") if results else ""
+
+    def _fetch_candidate_hits(self, query: str, collection_name: str, top_k: int) -> List[Any]:
+        """Phase 1: Finding candidate hits using hybrid dense vector and keyword matches."""
+        query_vector = self.embedding_model.encode(query, normalize_embeddings=True).tolist()
+        
+        dense_response = self.client.query_points(
+            collection_name=collection_name,
+            query=query_vector,
+            limit=top_k,
+            with_payload=True
+        )
+        
+        dense_hits = dense_response.points
+        
+        lexical_hits, _ = self.client.scroll(
+            collection_name=collection_name,
+            scroll_filter=models.Filter(
+                must=[models.FieldCondition(key="text", match=models.MatchText(text=query))]
+            ),
+            limit=top_k,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        seen_ids = set()
+        combined_candidates = []
+        for hit in dense_hits + lexical_hits:
+            if hit.id not in seen_ids:
+                seen_ids.add(hit.id)
+                combined_candidates.append(hit)
+                
+        return combined_candidates
+
+    def _rerank_candidates(self, query: str, candidates: List[Any], rerank_top_k: int) -> List[Tuple[Any, float]]:
+        """Phase 2: Cross-Encoder Re-ranking of candidate blocks."""
+        if not candidates:
+            return []
+            
+        cross_inp = [[query, hit.payload.get("text", "")] for hit in candidates]
+        
+        scores = self.reranker_model.predict(cross_inp)
+        
+        ranked_candidates = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
+        return ranked_candidates[:rerank_top_k]
+
+    def _expand_context(self, ranked_top: List[Tuple[Any, float]], collection_name: str) -> List[Dict[str, Any]]:
+        """Phase 3: Neighbor Context Expansion for the top-ranked segments."""
+        final_context_blocks = []
+        for hit, score in ranked_top:
+            payload = hit.payload
+            paper_name = payload.get("paper_name", "Unknown")
+            chunk_num = payload.get("chunk_number", 0)
+            parent_section = payload.get("parent_section", "Unknown")
+            page_number = payload.get("page_number", 0)
+            page_numbers = payload.get("page_numbers", [page_number])
+            
+            prev_text = self._get_neighbor_chunk(collection_name, paper_name, chunk_num - 1)
+            current_text = payload.get("text", "")
+            next_text = self._get_neighbor_chunk(collection_name, paper_name, chunk_num + 1)
+            
+            unified_content = "\n".join(filter(None, [prev_text, current_text, next_text]))
+            
+            final_context_blocks.append({
+                "content": unified_content,
+                "score": float(score),
+                "metadata": {
+                    "source": paper_name,
+                    "parent_section": parent_section,
+                    "pages": page_numbers,
+                    "chunk_number": chunk_num,  
+                }
+            })
+            
+        return final_context_blocks
+
+    def retrieve_context(self, query: str, collection_name: str = config.QDRANT_COLLECTION_NAME, top_k: int = config.RETRIEVAL_TOP_K) -> List[Dict[str, Any]]:
+        """
+        Executes Strategy Document Workflow:
+        Finding Hits -> Re-ranking -> Context Expansion
+        """
+        candidates = self._fetch_candidate_hits(query, collection_name, top_k)
+        print(f"Found {len(candidates)} candidate hits for query: '{query}' in collection '{collection_name}'.")
+        
+        if not candidates:
+            return []
+        
+        print(f"Re-ranking top {config.RERANK_TOP_K} candidates using Cross-Encoder model...")
+        
+        top_ranked = self._rerank_candidates(query, candidates, config.RERANK_TOP_K)
+        return self._expand_context(top_ranked, collection_name)
+
+    def _call_llm(self, messages: List[Dict[str, str]]) -> str:
+        """Reusable LLM helper method with automatic retry logic for robustness."""
+        
+        return call_configured_llm(model_name=config.LLM_MODEL_NAME, messages=messages, temperature=config.LLM_TEMPERATURE)
+
+    def answer_query(self, query: str, chat_history: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, Any]]]:
+        """The principal interface consumed by your application layer."""
+        
+       # Resolve routing and direct response in a single check/call
+        requires_retrieval, direct_answer = self.router.resolve_query_intent(query, chat_history)
+        
+        if not requires_retrieval:
+            return direct_answer, []
+            
+        contexts = self.retrieve_context(query)
+        
+        print(f"Retrieved {len(contexts)} context blocks for query: '{query}'.")
+        
+        if not contexts:
+            return "I could not find any relevant information in the research papers to answer your query.", []
+
+        context_str = "\n\n---\n\n".join(
+            [f"📄 Source: {ctx['metadata'].get('source', 'Unknown')}\n📑 Section: {ctx['metadata'].get('parent_section', 'Unknown')}\n📖 Content:\n{ctx['content']}" for ctx in contexts]
+        )
+
+        system_instruction = get_academic_system_instruction(context_str)
+
+        messages = [{"role": "system", "content": system_instruction}]
+        if chat_history:
+            messages.extend(chat_history)
+        messages.append({"role": "user", "content": query})
+
+        try:
+            print(f"Invoking LLM model '{config.LLM_MODEL_NAME}' for query response generation...")
+            llm_answer = self._call_llm(messages)
+        except Exception as e:
+            print(f"[LLM Core Error] Generation layer failure after retries: {e}")
+            llm_answer = "Context pulled successfully, but the LLM inference loop failed to resolve an output sentence after multiple retries."
+
+        return llm_answer, contexts
+
+if __name__ == "__main__":
+    print("\n--- Starting Clean Configured Retriever Integration Test ---")
+    retriever = HybridRetriever()
+    
+    test_query = "What is the primary training objective of BERT?"
+    mock_history = [
+        {"role": "user", "content": "Let's discuss language representation models."},
+        {"role": "assistant", "content": "Sure, I have access to your database collection containing several transformer architecture papers."}
+    ]
+    
+    try:
+        print(f"\nDispatching query via settings logic: '{test_query}'...")
+        answer, sources = retriever.answer_query(query=test_query, chat_history=mock_history)
+        
+        print("\n" + "="*60)
+        print("🤖 CHAT INTERFACE ANSWER RESPONSE:")
+        print("="*60)
+        print(answer)
+        
+        print("\n" + "="*60)
+        print("📚 VERIFIED SOURCE METADATA DELIVERED:")
+        print("="*60)
+        for idx, src in enumerate(sources):
+            metadata = src.get("metadata", {})
+            print(f"[{idx+1}] Paper: {metadata.get('source', 'Unknown')} | Section: {metadata.get('parent_section', 'Unknown')} | Reranker Score: {src['score']:.4f}")
+            
+    except Exception as e:
+        print(f"\n[Runtime Validation Error] Pipeline test failed: {e}")
