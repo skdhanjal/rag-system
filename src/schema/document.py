@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class DocumentMetadata:
+    source: str
     paper_name: str
     chunk_number: int
     parent_section: str

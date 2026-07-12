@@ -17,7 +17,7 @@ if str(project_root) not in sys.path:
 from src.helpers.llm_helper import call_configured_llm
 from src.prompts.prompts import get_academic_system_instruction
 import src.config.settings as config
-from src.router.query_router import QueryRouter
+from src.retrieval.query_router import QueryRouter
 
 
 class HybridRetriever:
@@ -121,10 +121,10 @@ class HybridRetriever:
         for hit, score in ranked_top:
             payload = hit.payload
             paper_name = payload.get("paper_name", "Unknown")
+            source = payload.get("source", "Unknown")
             chunk_num = payload.get("chunk_number", 0)
             parent_section = payload.get("parent_section", "Unknown")
             page_number = payload.get("page_number", 0)
-            page_numbers = payload.get("page_numbers", [page_number])
             
             prev_text = self._get_neighbor_chunk(collection_name, paper_name, chunk_num - 1)
             current_text = payload.get("text", "")
@@ -136,9 +136,10 @@ class HybridRetriever:
                 "content": unified_content,
                 "score": float(score),
                 "metadata": {
-                    "source": paper_name,
+                    "source": source,
+                    "paper_name": paper_name,
                     "parent_section": parent_section,
-                    "pages": page_numbers,
+                    "page_number": page_number,
                     "chunk_number": chunk_num,  
                 }
             })
@@ -151,14 +152,14 @@ class HybridRetriever:
         Finding Hits -> Re-ranking -> Context Expansion
         """
         candidates = self._fetch_candidate_hits(query, collection_name, top_k)
-        print(f"Found {len(candidates)} candidate hits for query: '{query}' in collection '{collection_name}'.")
         
+        print(f"Found {len(candidates)} candidate hits for query: '{query}' in collection '{collection_name}'.")
         if not candidates:
             return []
         
         print(f"Re-ranking top {config.RERANK_TOP_K} candidates using Cross-Encoder model...")
-        
         top_ranked = self._rerank_candidates(query, candidates, config.RERANK_TOP_K)
+        
         return self._expand_context(top_ranked, collection_name)
 
     def _call_llm(self, messages: List[Dict[str, str]]) -> str:
