@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from sentence_transformers import SentenceTransformer, CrossEncoder
+from litellm.exceptions import Timeout as LiteLLMTimeout
 
 # Load environment variables at the top
 load_dotenv(override=True)
@@ -164,15 +165,39 @@ class HybridRetriever:
         return self._expand_context(top_ranked, collection_name)
 
     def _call_llm(self, messages: List[Dict[str, str]]) -> str:
-        """Reusable LLM helper method with automatic retry logic for robustness."""
-        
-        return call_configured_llm(model_name=config.LLM_MODEL_NAME, messages=messages, temperature=config.LLM_TEMPERATURE)
+        """Call the configured LLM and handle generation errors."""
+        try:
+            print(f"Invoking LLM model '{config.LLM_MODEL_NAME}' for query response generation...")
+            answer = call_configured_llm(
+                model_name=config.LLM_MODEL_NAME,
+                messages=messages,
+                temperature=config.LLM_TEMPERATURE,
+            )
+            print(f"Received response from '{config.LLM_MODEL_NAME}' ({len(answer)} characters).")
+            return answer
+        except LiteLLMTimeout:
+            print(f"[LLM Timeout] '{config.LLM_MODEL_NAME}' did not respond in time.")
+            if config.LLM_PROVIDER == "ollama":
+                return (
+                    f"The local Ollama model did not respond within {config.LLM_TIMEOUT_SECONDS} seconds. "
+                    "Try again with a smaller prompt, check that Ollama is running, or switch to Groq."
+                )
+            return (
+                f"The configured LLM did not respond within {config.LLM_TIMEOUT_SECONDS} seconds. "
+                "Please try again."
+            )
+        except Exception as error:
+            print(f"[LLM Core Error] Generation layer failure: {error}")
+            return (
+                "Context was retrieved, but the configured LLM could not generate an answer. "
+                "Check the provider configuration and try again."
+            )
 
     def answer_query(self, query: str, chat_history: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, Any]]]:
         """The principal interface consumed by your application layer."""
         chat_history = retain_recent_completed_turns(chat_history)
 
-       # Resolve routing and direct response in a single check/call
+        # Resolve routing and direct response in a single check/call
         requires_retrieval, direct_answer = self.router.resolve_query_intent(query, chat_history)
         
         if not requires_retrieval:
@@ -196,14 +221,7 @@ class HybridRetriever:
             messages.extend(chat_history)
         messages.append({"role": "user", "content": query})
 
-        try:
-            print(f"Invoking LLM model '{config.LLM_MODEL_NAME}' for query response generation...")
-            llm_answer = self._call_llm(messages)
-        except Exception as e:
-            print(f"[LLM Core Error] Generation layer failure after retries: {e}")
-            llm_answer = "Context pulled successfully, but the LLM inference loop failed to resolve an output sentence after multiple retries."
-
-        return llm_answer, contexts
+        return self._call_llm(messages), contexts
 
 if __name__ == "__main__":
     print("\n--- Starting Clean Configured Retriever Integration Test ---")

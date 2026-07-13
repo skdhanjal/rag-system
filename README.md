@@ -26,7 +26,7 @@ The current codebase provides the following capabilities:
 - **Cleaning and chunking:** Boilerplate such as page headers, footers, emails, and publication notices is removed. Docling's `HybridChunker` creates token-aware chunks while retaining heading and page context.
 - **Embedding and storage:** `sentence-transformers/all-MiniLM-L6-v2` creates normalized 384-dimensional embeddings, which are stored in a persistent local Qdrant collection by default.
 - **Retrieval and reranking:** Dense vector candidates are combined with text-match candidates, reranked with a cross-encoder, and expanded with the immediately previous and next chunks from the same paper.
-- **Grounded chat:** A Gradio interface sends retrieved excerpts and chat history to the configured LLM and displays the supporting contexts beside each answer.
+- **Grounded chat:** A Gradio interface sends retrieved excerpts and chat history to the configured LLM and displays the supporting contexts beside each answer. Local Ollama with the open-source `llama3.2:1b` model is the default; Google, OpenAI, and Groq are configurable alternatives.
 - **Evaluation dashboard:** A second Gradio interface evaluates retrieval with MRR, nDCG, and keyword coverage, and evaluates answers with LLM-as-a-judge scores for accuracy, completeness, and relevance.
 - **Question set:** `src/evaluation/tests.jsonl` contains 50 evaluation questions spanning the five papers.
 - **Vector visualization:** A Plotly/t-SNE utility produces an interactive map of the stored embedding space.
@@ -70,9 +70,9 @@ local_qdrant/        Persistent local Qdrant data (created/populated at runtime)
 - Python 3.12 or later
 - [uv](https://docs.astral.sh/uv/)
 - Internet access on first run to download Docling and Hugging Face model assets
-- API credentials for the LLM services configured in `src/config/settings.py`
+- Ollama running locally for the default answer-generation model, or API credentials for a selected hosted provider
 
-The current configuration uses Google Gemini for answer generation and OpenAI models for intent routing and answer evaluation. The `.env` file is intentionally ignored; never commit API keys.
+The default answer generator is the locally installed `llama3.2:1b` Ollama model. Google, OpenAI, and Groq can be selected through configuration. The query router and answer evaluator currently use OpenAI models. The `.env` file is intentionally ignored; never commit API keys.
 
 ## Setup
 
@@ -82,11 +82,24 @@ From the repository root:
 uv sync
 ```
 
-Create a `.env` file in the repository root and provide the keys used by the current configuration:
+Create a `.env` file in the repository root. The default local Ollama setup does not require an API key:
 
 ```dotenv
-GOOGLE_API_KEY=your_google_ai_api_key
+# Answer generator: ollama, google, openai, or groq
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2:1b
+OLLAMA_API_BASE=http://localhost:11434
+LLM_TIMEOUT_SECONDS=60
+
+# Required by the current query router and answer evaluator
 OPENAI_API_KEY=your_openai_api_key
+
+# Required only when LLM_PROVIDER=google
+GOOGLE_API_KEY=your_google_ai_api_key
+
+# Required only when LLM_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key
+
 HF_TOKEN=your_hugging_face_token
 ```
 
@@ -98,7 +111,11 @@ Runtime settings live in [`src/config/settings.py`](src/config/settings.py). Com
 
 - `EMBEDDING_MODEL_NAME` and `VECTOR_DIMENSION` — these must remain compatible.
 - `QDRANT_LOCATION` — local persistence path; set `QDRANT_URL` and `QDRANT_API_KEY` in `.env` to use a remote Qdrant instance.
-- `LLM_MODEL_NAME` — answer-generation model.
+- `LLM_PROVIDER` — selects the answer-generation provider: `ollama`, `google`, `openai`, or `groq`.
+- `OLLAMA_MODEL`, `GOOGLE_MODEL`, `OPENAI_MODEL`, and `GROQ_MODEL` — override the model for a selected provider. The Groq default is `openai/gpt-oss-120b`.
+- `OLLAMA_API_BASE` — local Ollama endpoint; defaults to `http://localhost:11434`.
+- `LLM_MAX_TOKENS` — maximum answer length; set to 512 by default for responsive local Ollama generation.
+- `LLM_TIMEOUT_SECONDS` — maximum time to wait for one model response; defaults to 60 seconds. Ollama requests are not retried after a timeout.
 - `LLM_CLASSIFIER_MODEL_NAME` — query-routing model.
 - `LLM_AS_JUDGE_MODEL_NAME` — evaluation judge model.
 - `RETRIEVAL_TOP_K` and `RERANK_TOP_K` — number of candidates retrieved and retained.
@@ -153,6 +170,30 @@ uv run python src/chat_ui.py
 
 Gradio opens the application in a browser. Ask questions about the five indexed papers; the right-hand panel displays the retrieved source excerpts and metadata used for the answer.
 
+### Switch answer-generation providers
+
+Set `LLM_PROVIDER` in `.env`, then restart the application. For example:
+
+```dotenv
+# Local open-source model through Ollama (default)
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2:1b
+```
+
+```dotenv
+# Open-weight GPT-OSS model hosted by Groq
+LLM_PROVIDER=groq
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
+```dotenv
+# Hosted providers
+LLM_PROVIDER=google
+# or: LLM_PROVIDER=openai
+```
+
+When using Ollama, make sure its local service is running before starting the chat application.
+
 ## Run the evaluation dashboard
 
 Ensure the Qdrant collection has been populated, then start the dashboard:
@@ -198,7 +239,8 @@ The generated HTML file is written to `docs/embedding_space.html` by default. Ch
 
 - **No retrieved context or Qdrant collection error:** Run the ingestion pipeline first and confirm that it reports stored points.
 - **Model download/authentication error:** Check your internet connection and `HF_TOKEN`; then rerun `uv sync` if dependencies are incomplete.
-- **LLM authentication or routing error:** Confirm `GOOGLE_API_KEY` and `OPENAI_API_KEY` are present in `.env` and that the configured models are available to your account.
+- **LLM authentication or routing error:** Confirm the credential for the selected provider is present in `.env` (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, or `GROQ_API_KEY`) and that the configured model is available to your account.
+- **Ollama connection error:** Start the Ollama service and check that `OLLAMA_MODEL` appears in `ollama list`.
 - **Embedding dimension error:** If you change `EMBEDDING_MODEL_NAME`, update `VECTOR_DIMENSION` and recreate the Qdrant collection before re-ingesting.
 - **Slow first run:** Initial model downloads and PDF parsing can take substantially longer than later runs using `--loader json`.
 
@@ -209,6 +251,7 @@ The generated HTML file is written to `docs/embedding_space.html` by default. Ch
 | Five-PDF ingestion | Included source corpus and Docling ingestion pipeline |
 | Vector database | Persistent local Qdrant collection |
 | Semantic retrieval | SentenceTransformer embeddings, retrieval, reranking, and context expansion |
+| Open-source language model | Local Ollama support with `llama3.2:1b` as the default answer generator |
 | Conversational interface | Gradio chat application |
 | Evaluation | 50-question test set with retrieval and answer-quality metrics |
 | Final report | To be submitted separately as a PDF deliverable |
