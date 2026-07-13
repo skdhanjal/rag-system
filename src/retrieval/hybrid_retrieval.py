@@ -15,6 +15,7 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 from src.helpers.llm_helper import call_configured_llm
+from src.helpers.conversation_memory import retain_recent_completed_turns
 from src.prompts.prompts import get_academic_system_instruction
 import src.config.settings as config
 from src.retrieval.query_router import QueryRouter
@@ -169,7 +170,8 @@ class HybridRetriever:
 
     def answer_query(self, query: str, chat_history: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, Any]]]:
         """The principal interface consumed by your application layer."""
-        
+        chat_history = retain_recent_completed_turns(chat_history)
+
        # Resolve routing and direct response in a single check/call
         requires_retrieval, direct_answer = self.router.resolve_query_intent(query, chat_history)
         

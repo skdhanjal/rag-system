@@ -30,6 +30,9 @@ VECTOR_DIMENSION = 384  # Must match the embedding model's output dimension
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 
+# --- Conversation Memory Configuration ---
+MAX_CONVERSATION_TURNS = 4
+
 # --- Visualization Configurations ---
 # Canvas dimension options: "2D" or "3D"
 VISUALIZATION_DIMENSION = "2D"

@@ -190,7 +190,7 @@ The generated HTML file is written to `docs/embedding_space.html` by default. Ch
 
 - Re-running ingestion upserts deterministic chunk IDs, so existing chunks are updated instead of blindly duplicated.
 - Local Qdrant data persists under `local_qdrant` unless `QDRANT_LOCATION` is changed.
-- The current chat interface passes its conversation history to generation. The README does not claim a strict four-turn memory limit because that limit is not yet enforced in the UI layer.
+- The chat UI keeps the full transcript visible, while the retrieval and routing layers use exactly the latest four completed user/assistant exchanges as model memory.
 - The current implementation uses dense embeddings and a text-match candidate path. It does not yet implement a true BM25 index or reciprocal-rank fusion.
 - The final assignment report is a separate deliverable and should document architectural decisions, experiments, evaluation results, limitations, and future improvements.
 

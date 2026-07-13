@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional
 from pydantic import BaseModel, Field
 import src.config.settings as config
 from src.helpers.llm_helper import call_configured_llm
+from src.helpers.conversation_memory import retain_recent_completed_turns
 from src.prompts.prompts import STATIC_GREETING_RESPONSE, ROUTER_SYSTEM_INSTRUCTION
 
 class QueryIntentSchema(BaseModel):
@@ -37,6 +38,8 @@ class QueryRouter:
         - Tier 1: Pure static response for standalone greetings (No LLM).
         - Tier 2: LLM router returning structured JSON via Pydantic validation.
         """
+        chat_history = retain_recent_completed_turns(chat_history)
+
         print(f"\nEvaluating incoming query for routing: '{query}'")
         
         # Tier 1: Pure standalone greeting check -> Return static text instantly
@@ -55,7 +58,7 @@ class QueryRouter:
         
         messages = [{"role": "system", "content": json_instruction}]
         if chat_history:
-            messages.extend(chat_history[-2:])
+            messages.extend(chat_history)
         messages.append({"role": "user", "content": query})
 
         try:
