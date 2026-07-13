@@ -140,6 +140,7 @@ celerybeat.pid
 mnesia/
 rabbitmq/
 rabbitmq-data/
+local_qdrant
 
 # ActiveMQ
 activemq-data/
