@@ -56,7 +56,7 @@ RERANK_TOP_K = 10
 
 # --- LLM Interface Configurations ---
 # Select the answer-generation provider: "ollama", "google", "openai", or "groq".
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 
 # Provider-specific model names can be overridden through environment variables.
 LLM_MODELS = {
@@ -69,7 +69,7 @@ LLM_MODELS = {
 LLM_MODEL_NAME = LLM_MODELS[LLM_PROVIDER]
 OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
 LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "60"))
-LLM_AS_JUDGE_MODEL_NAME = "gpt-4o-mini"
+LLM_AS_JUDGE_MODEL_NAME = "gemini/gemini-3.1-flash-lite"
 
 LLM_TEMPERATURE = 0.1
 LLM_MAX_TOKENS = 2048

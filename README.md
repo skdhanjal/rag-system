@@ -24,7 +24,7 @@ The current codebase provides the following capabilities:
 - **Document ingestion:** Docling parses PDFs with layout analysis, table-structure extraction, formula enrichment, and optional figure extraction.
 - **Reusable parsed data:** Parsed Docling documents can be stored as JSON and reloaded without parsing the PDFs again.
 - **Cleaning and chunking:** Boilerplate such as page headers, footers, emails, and publication notices is removed. Docling's `HybridChunker` creates token-aware chunks while retaining heading and page context.
-- **Embedding and storage:** `sentence-transformers/all-MiniLM-L6-v2` creates normalized 384-dimensional embeddings, which are stored in a persistent local Qdrant collection by default.
+- **Embedding and storage:** `BAAI/bge-base-en-v1.5` creates normalized 768-dimensional embeddings, which are stored in a persistent local Qdrant collection by default.
 - **Retrieval and reranking:** Dense vector candidates are combined with text-match candidates, reranked with a cross-encoder, and expanded with the immediately previous and next chunks from the same paper.
 - **Grounded chat:** A Gradio interface sends retrieved excerpts and chat history to the configured LLM and displays the supporting contexts beside each answer. Local Ollama with the open-source `llama3.2:1b` model is the default; Google, OpenAI, and Groq are configurable alternatives.
 - **Evaluation dashboard:** A second Gradio interface evaluates retrieval with MRR, nDCG, and keyword coverage, and evaluates answers with LLM-as-a-judge scores for accuracy, completeness, and relevance.

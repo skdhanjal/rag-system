@@ -1,100 +1,101 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100" role="img" aria-labelledby="title description">
-  <title id="title">Structurally aware hybrid RAG system architecture</title>
-  <desc id="description">A diagram showing an offline document ingestion pipeline feeding a Qdrant hybrid index and an online query pipeline that performs dense and sparse retrieval, rank fusion, reranking, neighbor expansion, and grounded answer synthesis.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1040" viewBox="0 0 1800 1040" role="img" aria-labelledby="title description">
+  <title id="title">Academic Literature RAG System Architecture</title>
+  <desc id="description">Offline Docling ingestion creates dense BGE-base embeddings in Qdrant. Online queries use four-turn memory, dense retrieval plus text-match candidates, cross-encoder reranking, neighboring chunk expansion, and a configurable LLM.</desc>
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#475569"/></marker>
-    <marker id="dashArrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#64748b"/></marker>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
     <style>
       .title { font: 700 34px Arial, sans-serif; fill: #0f172a; }
-      .subtitle { font: 500 18px Arial, sans-serif; fill: #475569; }
+      .subtitle { font: 18px Arial, sans-serif; fill: #475569; }
       .group { fill: #f8fafc; stroke: #94a3b8; stroke-width: 2; rx: 18; }
       .group-title { font: 700 23px Arial, sans-serif; fill: #1e293b; }
-      .node { fill: #fff; stroke: #64748b; stroke-width: 2; rx: 12; }
+      .node { fill: #ffffff; stroke: #64748b; stroke-width: 2; rx: 12; }
       .node-blue { fill: #eff6ff; stroke: #2563eb; stroke-width: 2.5; rx: 12; }
       .node-amber { fill: #fffbeb; stroke: #d97706; stroke-width: 2.5; rx: 12; }
       .node-green { fill: #f0fdf4; stroke: #16a34a; stroke-width: 2.5; rx: 12; }
       .node-title { font: 700 17px Arial, sans-serif; fill: #172554; text-anchor: middle; }
       .node-body { font: 14px Arial, sans-serif; fill: #334155; text-anchor: middle; }
       .arrow { stroke: #475569; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
-      .dash { stroke: #64748b; stroke-width: 2.5; stroke-dasharray: 8 7; fill: none; marker-end: url(#dashArrow); }
+      .dash { stroke: #64748b; stroke-width: 2.5; stroke-dasharray: 8 7; fill: none; marker-end: url(#arrow); }
       .label { font: 13px Arial, sans-serif; fill: #64748b; }
     </style>
   </defs>
 
-  <text x="70" y="58" class="title">Structurally Aware Hybrid RAG System</text>
-  <text x="70" y="88" class="subtitle">Offline document preparation is separated from low-latency online retrieval and grounded response generation.</text>
+  <text x="70" y="58" class="title">Academic Literature RAG System</text>
+  <text x="70" y="88" class="subtitle">Implementation-aligned architecture: structure-aware ingestion, dense retrieval, reranking, context expansion, and configurable generation.</text>
 
-  <rect x="50" y="125" width="1700" height="350" class="group"/>
+  <rect x="50" y="125" width="1700" height="320" class="group"/>
   <text x="80" y="165" class="group-title">Offline ingestion pipeline</text>
 
-  <rect x="85" y="225" width="180" height="105" class="node"/>
-  <text x="175" y="265" class="node-title">Academic PDFs</text>
-  <text x="175" y="290" class="node-body">Multi-column source</text><text x="175" y="310" class="node-body">documents</text>
+  <rect x="85" y="225" width="170" height="100" class="node"/>
+  <text x="170" y="265" class="node-title">Academic PDFs</text>
+  <text x="170" y="290" class="node-body">Five source papers</text>
 
-  <rect x="325" y="225" width="200" height="105" class="node"/>
-  <text x="425" y="258" class="node-title">Docling parsing</text>
-  <text x="425" y="284" class="node-body">Layout, reading order,</text><text x="425" y="304" class="node-body">tables, and hierarchy</text>
+  <rect x="305" y="225" width="190" height="100" class="node"/>
+  <text x="400" y="260" class="node-title">Docling parsing</text>
+  <text x="400" y="286" class="node-body">Layout, tables, formulas,</text><text x="400" y="306" class="node-body">and reading order</text>
 
-  <rect x="585" y="225" width="205" height="105" class="node"/>
-  <text x="687" y="258" class="node-title">Semantic cleaning</text>
-  <text x="687" y="284" class="node-body">Remove boilerplate;</text><text x="687" y="304" class="node-body">preserve equations</text>
+  <rect x="545" y="225" width="190" height="100" class="node"/>
+  <text x="640" y="260" class="node-title">Document cleaning</text>
+  <text x="640" y="286" class="node-body">Remove headers, footers,</text><text x="640" y="306" class="node-body">and boilerplate</text>
 
-  <rect x="850" y="225" width="210" height="105" class="node"/>
-  <text x="955" y="258" class="node-title">Hierarchical chunks</text>
-  <text x="955" y="284" class="node-body">Sections → subsections</text><text x="955" y="304" class="node-body">→ paragraph leaves</text>
+  <rect x="785" y="225" width="205" height="100" class="node"/>
+  <text x="887" y="260" class="node-title">Docling HybridChunker</text>
+  <text x="887" y="286" class="node-body">Heading-aware, token-safe</text><text x="887" y="306" class="node-body">chunks, max 500 tokens</text>
 
-  <rect x="1120" y="225" width="215" height="105" class="node"/>
-  <text x="1227" y="258" class="node-title">Metadata enrichment</text>
-  <text x="1227" y="284" class="node-body">Pages, headings, and</text><text x="1227" y="304" class="node-body">sibling-node pointers</text>
+  <rect x="1040" y="225" width="210" height="100" class="node"/>
+  <text x="1145" y="260" class="node-title">Metadata enrichment</text>
+  <text x="1145" y="286" class="node-body">Paper, section, page,</text><text x="1145" y="306" class="node-body">and chunk number</text>
 
-  <rect x="1395" y="225" width="180" height="105" class="node"/>
-  <text x="1485" y="258" class="node-title">bge-m3 encoding</text>
-  <text x="1485" y="284" class="node-body">Dense semantic +</text><text x="1485" y="304" class="node-body">sparse lexical vectors</text>
+  <rect x="1300" y="225" width="205" height="100" class="node-blue"/>
+  <text x="1402" y="260" class="node-title">BGE-base encoding</text>
+  <text x="1402" y="286" class="node-body">BAAI/bge-base-en-v1.5</text><text x="1402" y="306" class="node-body">768D dense embeddings</text>
 
-  <rect x="1630" y="205" width="90" height="145" class="node-blue"/>
-  <text x="1675" y="255" class="node-title">Qdrant</text>
-  <text x="1675" y="281" class="node-body">hybrid</text><text x="1675" y="301" class="node-body">index</text>
+  <rect x="1560" y="205" width="135" height="140" class="node-blue"/>
+  <text x="1627" y="250" class="node-title">Qdrant</text>
+  <text x="1627" y="276" class="node-body">Persistent local</text><text x="1627" y="296" class="node-body">dense-vector index</text>
 
-  <path d="M265 277 H325" class="arrow"/><path d="M525 277 H585" class="arrow"/><path d="M790 277 H850" class="arrow"/>
-  <path d="M1060 277 H1120" class="arrow"/><path d="M1335 277 H1395" class="arrow"/><path d="M1575 277 H1630" class="arrow"/>
+  <path d="M255 275 H305" class="arrow"/><path d="M495 275 H545" class="arrow"/><path d="M735 275 H785" class="arrow"/>
+  <path d="M990 275 H1040" class="arrow"/><path d="M1250 275 H1300" class="arrow"/><path d="M1505 275 H1560" class="arrow"/>
 
-  <rect x="50" y="525" width="1700" height="510" class="group"/>
-  <text x="80" y="565" class="group-title">Online runtime execution loop</text>
+  <rect x="50" y="500" width="1700" height="470" class="group"/>
+  <text x="80" y="540" class="group-title">Online query and answer pipeline</text>
 
-  <rect x="85" y="665" width="155" height="100" class="node-amber"/>
-  <text x="162" y="705" class="node-title">User query</text><text x="162" y="730" class="node-body">Question or prompt</text>
-  <rect x="85" y="845" width="155" height="100" class="node-amber"/>
-  <text x="162" y="880" class="node-title">User feedback</text><text x="162" y="906" class="node-body">Corrections and</text><text x="162" y="926" class="node-body">output direction</text>
+  <rect x="85" y="650" width="150" height="95" class="node-amber"/>
+  <text x="160" y="687" class="node-title">User query</text><text x="160" y="712" class="node-body">Question or prompt</text>
 
-  <rect x="305" y="665" width="210" height="100" class="node"/>
-  <text x="410" y="700" class="node-title">Prompt manager</text><text x="410" y="726" class="node-body">Query + last 4</text><text x="410" y="746" class="node-body">conversation turns</text>
-  <rect x="575" y="665" width="210" height="100" class="node"/>
-  <text x="680" y="700" class="node-title">Context-aware query</text><text x="680" y="726" class="node-body">Formulate retrieval</text><text x="680" y="746" class="node-body">constraints</text>
+  <rect x="290" y="650" width="205" height="95" class="node"/>
+  <text x="392" y="684" class="node-title">Conversation memory</text><text x="392" y="710" class="node-body">Latest 4 complete</text><text x="392" y="730" class="node-body">user/assistant turns</text>
 
-  <rect x="850" y="610" width="205" height="95" class="node-blue"/>
-  <text x="952" y="647" class="node-title">Dense retrieval</text><text x="952" y="672" class="node-body">Semantic matching</text>
-  <rect x="850" y="775" width="205" height="95" class="node-blue"/>
-  <text x="952" y="812" class="node-title">BM25 retrieval</text><text x="952" y="837" class="node-body">Exact keyword matching</text>
+  <rect x="550" y="650" width="180" height="95" class="node"/>
+  <text x="640" y="685" class="node-title">Query router</text><text x="640" y="710" class="node-body">Greeting/off-topic or</text><text x="640" y="730" class="node-body">retrieval decision</text>
 
-  <rect x="1120" y="665" width="190" height="100" class="node"/>
-  <text x="1215" y="700" class="node-title">Rank fusion</text><text x="1215" y="726" class="node-body">Merge dense and</text><text x="1215" y="746" class="node-body">sparse results</text>
-  <rect x="1370" y="665" width="185" height="100" class="node"/>
-  <text x="1462" y="700" class="node-title">Cross-encoder</text><text x="1462" y="726" class="node-body">Rerank top 20</text><text x="1462" y="746" class="node-body">candidates</text>
-  <rect x="1610" y="665" width="115" height="100" class="node"/>
-  <text x="1667" y="698" class="node-title">Neighbor</text><text x="1667" y="720" class="node-title">expansion</text><text x="1667" y="746" class="node-body">N-1 / N+1</text>
+  <rect x="785" y="590" width="190" height="90" class="node-blue"/>
+  <text x="880" y="624" class="node-title">Dense retrieval</text><text x="880" y="650" class="node-body">Cosine similarity</text>
 
-  <rect x="1370" y="855" width="220" height="105" class="node-green"/>
-  <text x="1480" y="892" class="node-title">Local Llama-3-8B</text><text x="1480" y="918" class="node-body">Grounded answer synthesis</text>
-  <rect x="1640" y="855" width="100" height="105" class="node-amber"/>
-  <text x="1690" y="895" class="node-title">Grounded</text><text x="1690" y="917" class="node-title">response</text>
+  <rect x="785" y="780" width="190" height="90" class="node-blue"/>
+  <text x="880" y="814" class="node-title">Text-match filter</text><text x="880" y="840" class="node-body">Qdrant candidate lookup</text>
 
-  <path d="M240 715 H305" class="arrow"/><path d="M515 715 H575" class="arrow"/>
-  <path d="M785 715 H810 V657 H850" class="arrow"/><path d="M785 715 H810 V822 H850" class="arrow"/>
-  <path d="M1055 657 H1085 V715 H1120" class="arrow"/><path d="M1055 822 H1085 V715" class="arrow"/>
-  <path d="M1310 715 H1370" class="arrow"/><path d="M1555 715 H1610" class="arrow"/>
-  <path d="M1667 765 V807 H1480 V855" class="arrow"/><path d="M1590 907 H1640" class="arrow"/>
-  <path d="M240 895 H270 V715 H575" class="arrow"/><path d="M410 765 V807 H1480 V855" class="arrow"/>
-  <path d="M240 895 H270 V907 H1370" class="arrow"/>
-  <path d="M1675 350 V550 H952 V610" class="dash"/><path d="M1675 350 V550 H1667 V665" class="dash"/>
-  <text x="1050" y="535" class="label">Hybrid index provides vector search</text><text x="1580" y="535" class="label">and sibling metadata</text>
+  <rect x="1030" y="650" width="185" height="95" class="node"/>
+  <text x="1122" y="685" class="node-title">Candidate merge</text><text x="1122" y="710" class="node-body">Deduplicate dense and</text><text x="1122" y="730" class="node-body">text-match candidates</text>
+
+  <rect x="1270" y="650" width="190" height="95" class="node"/>
+  <text x="1365" y="685" class="node-title">Cross-encoder rerank</text><text x="1365" y="710" class="node-body">ms-marco MiniLM</text><text x="1365" y="730" class="node-body">Top 10 candidates</text>
+
+  <rect x="1515" y="650" width="185" height="95" class="node"/>
+  <text x="1607" y="685" class="node-title">Context expansion</text><text x="1607" y="710" class="node-body">Same paper, chunk</text><text x="1607" y="730" class="node-body">number N-1 and N+1</text>
+
+  <rect x="1270" y="840" width="240" height="95" class="node-green"/>
+  <text x="1390" y="874" class="node-title">Configurable LLM</text><text x="1390" y="900" class="node-body">Ollama, Groq, Google, or OpenAI</text><text x="1390" y="920" class="node-body">Grounded answer synthesis</text>
+
+  <rect x="1570" y="840" width="130" height="95" class="node-amber"/>
+  <text x="1635" y="878" class="node-title">Grounded</text><text x="1635" y="900" class="node-title">response</text>
+
+  <path d="M235 697 H290" class="arrow"/><path d="M495 697 H550" class="arrow"/>
+  <path d="M730 697 H755 V635 H785" class="arrow"/><path d="M730 697 H755 V825 H785" class="arrow"/>
+  <path d="M975 635 H1000 V697 H1030" class="arrow"/><path d="M975 825 H1000 V697" class="arrow"/>
+  <path d="M1215 697 H1270" class="arrow"/><path d="M1460 697 H1515" class="arrow"/>
+  <path d="M1607 745 V790 H1390 V840" class="arrow"/><path d="M1510 887 H1570" class="arrow"/>
+  <path d="M495 745 V790 H1390 V840" class="arrow"/>
+  <path d="M1627 345 V520 H880 V590" class="dash"/><path d="M1627 345 V520 H1607 V650" class="dash"/>
+  <text x="1050" y="505" class="label">Qdrant supplies stored chunks and metadata</text>
 </svg>
