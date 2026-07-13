@@ -1,112 +1,218 @@
-# Engineering a Structurally Aware Hybrid RAG System for Academic Literature
+# Academic Literature RAG System
 
-## 1. Executive Summary & Problem Statement
-Traditional Retrieval-Augmented Generation (RAG) applications treat documents as flat strings of plain text, which introduces significant points of failure when applied to dense academic literature. Highly technical publications—such as foundational deep learning papers covering Transformer architectures, BERT, RoBERTa, GPT-3, and T5—rely on specific spatial and semantic structures to convey meaning. These complex features include:
-* Multi-column text layouts that dictate reading sequence.
-* Intricate hierarchical structures (Title -> Sections -> Subsections -> Paragraphs).
-* Embedded data representations such as tables, figures, charts, and corresponding descriptive captions.
-* Complex inline and block mathematical notations or mathematical equations.
-* Dense networks of internal cross-references and bibliographic citations.
+## Overview
 
-Standard layout-agnostic parsing tools systematically scramble two-column paragraphs, read text directly across margins, strip out critical section boundaries, and break continuous logical arguments apart based on arbitrary character limits. The resulting data fragmentation drops retrieval recall, introduces structural noise into vector spaces, and causes significant downstream LLM hallucinations.
+This project is a Retrieval-Augmented Generation (RAG) application for exploring foundational research papers on Transformer-based language models. It ingests academic PDFs, preserves useful document structure during preprocessing, indexes semantically meaningful chunks in Qdrant, and provides a conversational interface that answers questions from the indexed literature.
 
-To solve these limitations, this project establishes a production-grade, structurally aware, open-source RAG architecture designed to ingest, index, and query specialized academic texts. The application maps documents into hierarchical structural trees rather than character buffers. The runtime pipeline maintains an active conversation history window tracking exactly the last 4 turns, handles real-time corrective user feedback, and quantifies execution quality using an automated RAGAS evaluation engine against a test suite of 10 complex analytical questions.
+It was built for the **Generative AI Fundamentals** assignment, which requires a RAG application over five PDFs, semantic vector retrieval, a conversational bot, an evaluation workflow, and a final report.
 
----
+The detailed design rationale and experimental analysis belong in the accompanying PDF report. This README focuses on what the repository does and how to run it.
 
-## 2. System Architecture & High-Level Design
-The architecture decouples data preparation from runtime execution to isolate heavy computation. It is explicitly separated into an Offline Ingestion Pipeline and an Online Runtime Execution Loop.
+## Project objectives
 
-### Architecture Diagram & Logical Data Flow
+- Ingest and process five supplied academic PDFs.
+- Split extracted content into meaningful, structure-aware chunks.
+- Generate embeddings and persist them in a vector database.
+- Retrieve relevant paper excerpts and generate grounded answers in a chat interface.
+- Evaluate retrieval and answer quality against a curated question set.
+- Provide supporting diagnostics, including an embedding-space visualization.
 
-![Structurally aware hybrid RAG system architecture](docs/system-architecture.svg)
+## What has been implemented
 
-The offline pipeline builds a structure-aware hybrid index once per document set. The online loop uses that index for hybrid retrieval, reranking, neighbor expansion, and grounded answer generation.
+The current codebase provides the following capabilities:
 
----
+- **Document ingestion:** Docling parses PDFs with layout analysis, table-structure extraction, formula enrichment, and optional figure extraction.
+- **Reusable parsed data:** Parsed Docling documents can be stored as JSON and reloaded without parsing the PDFs again.
+- **Cleaning and chunking:** Boilerplate such as page headers, footers, emails, and publication notices is removed. Docling's `HybridChunker` creates token-aware chunks while retaining heading and page context.
+- **Embedding and storage:** `sentence-transformers/all-MiniLM-L6-v2` creates normalized 384-dimensional embeddings, which are stored in a persistent local Qdrant collection by default.
+- **Retrieval and reranking:** Dense vector candidates are combined with text-match candidates, reranked with a cross-encoder, and expanded with the immediately previous and next chunks from the same paper.
+- **Grounded chat:** A Gradio interface sends retrieved excerpts and chat history to the configured LLM and displays the supporting contexts beside each answer.
+- **Evaluation dashboard:** A second Gradio interface evaluates retrieval with MRR, nDCG, and keyword coverage, and evaluates answers with LLM-as-a-judge scores for accuracy, completeness, and relevance.
+- **Question set:** `src/evaluation/tests.jsonl` contains 50 evaluation questions spanning the five papers.
+- **Vector visualization:** A Plotly/t-SNE utility produces an interactive map of the stored embedding space.
 
-## 3. Detailed Component Blueprint & Tool Selection Rationale
+## Included research corpus
 
-### A. Document Layout Parsing
-* **Selected Tool:** Docling
-* **Rationale & Strategy:** Traditional text extractors strip spatial orientation, processing text horizontally across columns and rendering scientific layouts illegible. Docling is selected because it preserves document layout and structure by treating the file as an integrated document object model. It recognizes section hierarchies, reading orders, tabular structural grids, and bounded figure objects, keeping multi-column sentences readable and properly sequenced.
+The source PDFs are stored in [`docs/pdfs`](docs/pdfs) and correspond to the five papers specified in the assignment:
 
-### B. Structural Text Cleaning & Preprocessing
-* **Selected Tools:** Docling Document Model + BeautifulSoup + Python Re (Regex)
-* **Rationale & Strategy:** Technical documents contain pervasive textual noise (e.g., repeating running page headers, publication footnotes, conference banners, and page indexes) that clutters and pollutes embedding spaces. This processing layer strips boilerplate text while keeping critical structural elements intact, including: inline/block mathematical notation, figure descriptions, table boundaries, section IDs, and references.
+| Paper | File |
+| --- | --- |
+| Attention Is All You Need | `Attention_is_all_you_need.pdf` |
+| BERT | `Pre-training_of_Bidirectional_Transformers.pdf` |
+| GPT-3 | `Language_Models_are_Few-Shot_Learners.pdf` |
+| RoBERTa | `A_Robustly_Optimized_BERT.pdf` |
+| T5 | `Limits_of_transfer_learning.pdf` |
 
-### C. Hierarchical Semantic Chunking
-* **Selected Tool:** LlamaIndex HierarchicalNodeParser
-* **Rationale & Strategy:** Character-count splitting breaks up complex logical arguments in academic papers, scattering evidence across boundaries. A hierarchical parser splits content along natural document boundaries (Sections -> Subsections -> Paragraphs -> Leaves).
-* **Configuration Execution:** System targets a leaf structural dimension of 700–1200 tokens with a calculated structural window overlap of 100–150 tokens to ensure continuity across technical sub-arguments.
+## Repository layout
 
-### D. Multi-Modal Embedding Generation
-* **Selected Model:** BAAI/bge-m3
-* **Rationale & Strategy:** Technical text requires robust vector representations. The bge-m3 model natively supports dense semantic vector formatting, sparse token lexical weights, and multi-vector tracking within an open-source framework. It delivers excellent performance on specialized language, mathematical symbols, and technical idioms found in machine learning publications.
+```text
+src/
+├── ingestion/       PDF/JSON loading, cleaning, chunking, embeddings, Qdrant writes
+├── retrieval/       Query routing, retrieval, reranking, and context expansion
+├── evaluation/      Test set, retrieval metrics, and LLM-as-a-judge evaluation
+├── config/          Runtime models, paths, and retrieval settings
+├── prompts/         Chat and query-routing prompts
+├── chat_ui.py       Gradio chat application
+├── eval_ui.py       Gradio evaluation dashboard
+└── vector_space_visualizer.py
 
-### E. Database Layer & Vector Storage
-* **Selected Tool:** Qdrant
-* **Rationale & Strategy:** Qdrant is selected over simpler memory maps because it provides an integrated, production-ready storage architecture for hybrid search profiles. It manages multi-vector indexing, handles extensive payload metadata parsing, and applies real-time attribute filters without requiring separate standalone systems for keyword and vector lookups.
+docs/
+├── pdfs/            Source research papers
+├── parsed_json/     Pre-parsed Docling documents used by the fast ingestion mode
+├── clean-docs/      Saved cleaned-document examples
+└── graphs/          Previous evaluation and visualization exports
 
-### F. Multi-Tier Hybrid Retrieval Engine
-* **Selected Strategy:** Unified Dense Semantic Vectors + BM25 Sparse Keyword Tokenization
-* **Rationale & Strategy:** Semantic vectors can overlook exact matches for highly specific, out-of-distribution academic acronyms or unique operational terms (e.g., LayerNorm, BLEU, NSP, SQuAD, RoBERTa) if they appear near similar sentence shapes. Combining dense semantic tracking with precise BM25 keyword mapping improves retrieval accuracy by surface-matching specific technical terminology alongside conceptual concepts.
+local_qdrant/        Persistent local Qdrant data (created/populated at runtime)
+```
 
-### G. Cross-Encoder Reranking
-* **Selected Model:** BAAI/bge-reranker-v2-m3
-* **Rationale & Strategy:** Standard vector search scores queries and document chunks independently, which can lose key technical context over long spans. A cross-encoder reranker runs joint attention checks across the combined query-chunk text space. Processing the top 20 candidate text segments through this layer filters out false positives and groups the most accurate hits at the top of the context pile.
+## Prerequisites
 
-### H. Neighbor Context Assembly Engine
-* **Selected Protocol:** Structural Node Expansion
-* **Rationale & Strategy:** Even an accurate paragraph match can lose its surrounding context if it relies on upstream variable definitions or downstream summary points. When a specific leaf node returns a high-confidence match, the assembly engine uses its metadata map to retrieve its adjacent chronological siblings (e.g., bringing in Node N-1 and Node N+1 for Target Node N), creating a coherent block of text for the generation stage.
+- Python 3.12 or later
+- [uv](https://docs.astral.sh/uv/)
+- Internet access on first run to download Docling and Hugging Face model assets
+- API credentials for the LLM services configured in `src/config/settings.py`
 
-### I. Large Language Model Integration
-* **Selected Engine:** Local Inference Hub (Ollama or Hugging Face Transformers) orchestrating Llama-3-8B-Instruct.
-* **Rationale & Strategy:** Local instruction-tuned models provide predictable performance and strict prompt compliance without external API dependencies. Running a localized instance ensures zero latency drift, complete data privacy, and predictable runtime behavior across batch workloads.
+The current configuration uses Google Gemini for answer generation and OpenAI models for intent routing and answer evaluation. The `.env` file is intentionally ignored; never commit API keys.
 
-### J. Automated Evaluation Framework
-* **Selected Framework:** RAGAS
-* **Rationale & Strategy:** Manual grading of RAG answers does not scale. RAGAS automates this process by using LLM-assisted evaluation across three core metrics: Faithfulness (checking that answers are strictly grounded in the text), Answer Relevance (verifying the prompt was directly addressed), and Context Recall (measuring the retrieval engine's success in finding relevant data chunks).
+## Setup
 
----
+From the repository root:
 
-## 4. Implementation Details & Strategic Workflows
+```powershell
+uv sync
+```
 
-### Advanced Metadata Enrichment Matrix
-Before chunks are stored in the vector database, they are tagged with a detailed metadata schema. This relational metadata powers exact runtime filtering and coordinates the neighboring node expansion logic.
+Create a `.env` file in the repository root and provide the keys used by the current configuration:
 
-[Advanced Metadata Enrichment Matrix JSON Snippet will go here]
+```dotenv
+GOOGLE_API_KEY=your_google_ai_api_key
+OPENAI_API_KEY=your_openai_api_key
+HF_TOKEN=your_hugging_face_token
+```
 
-### Neighbor Context Expansion Algorithm
-When the retrieval engine returns the high-scoring text chunks from a query, the system runs this structural expansion workflow to rebuild context continuity:
-1. Isolate the top candidate leaf node keys based on the unified hybrid reranking scores.
-2. Parse the metadata payload to identify the associated previous_sibling_id and next_sibling_id attributes.
-3. Batch-query the database to pull those neighboring structural text chunks.
-4. Reassemble the retrieved segments into true chronological order based on their chunk_id_sequence.
-5. Format the combined text blocks with explicit document headers (e.g., --- Document: BERT | Section: 2.3 | Page 4 ---) before passing the text to the LLM generation context window.
+`HF_TOKEN` is useful for authenticated Hugging Face downloads. Depending on the public availability of the configured models, it may not be required.
 
----
+### Configuration
 
-## 5. Operational Prompt Topology & Memory Management
+Runtime settings live in [`src/config/settings.py`](src/config/settings.py). Common values to review are:
 
-### Conversational State Tracking Interface
-To maintain an active memory window tracking exactly the last 4 interactions, the runtime architecture wraps traffic inside a strict First-In, First-Out (FIFO) conversation state buffer.
+- `EMBEDDING_MODEL_NAME` and `VECTOR_DIMENSION` — these must remain compatible.
+- `QDRANT_LOCATION` — local persistence path; set `QDRANT_URL` and `QDRANT_API_KEY` in `.env` to use a remote Qdrant instance.
+- `LLM_MODEL_NAME` — answer-generation model.
+- `LLM_CLASSIFIER_MODEL_NAME` — query-routing model.
+- `LLM_AS_JUDGE_MODEL_NAME` — evaluation judge model.
+- `RETRIEVAL_TOP_K` and `RERANK_TOP_K` — number of candidates retrieved and retained.
 
-[Conversational State Tracking Interface Text Snippet will go here]
+## Ingest the documents
 
-### Production Prompt Topology Template
-The prompt template explicitly segregates instructions, historical turns, real-time feedback corrections, and retrieved source material to prevent text overlap:
+Ingestion creates embeddings and writes document payloads to the `llm_research_collection` Qdrant collection.
 
-[Production Prompt Topology Template Text Snippet will go here]
+### Fast mode: load existing parsed Docling JSON
 
----
+This is the default and recommended mode for the repository because parsed documents are already available in `docs/parsed_json`.
 
-## 6. Experimental Ledger & Implementation Challenges
-This ledger is an open logging section used to track implementation issues, vector collision rates, parsing anomalies, and evaluation metrics during system testing and tuning.
+```powershell
+uv run python -m src.ingestion.ingestion_pipeline --loader json
+```
 
-| Date | Experiment Run | Target Metric | Encountered Defect / Observation | Mitigation Strategy Applied |
-| :--- | :--- | :--- | :--- | :--- |
-| Pending | Run #01: Pure Dense Lookup | RAGAS Context Recall | Dense embeddings missed exact structural keywords in multi-column tables. | Introduced BM25 hybrid indexing search tier. |
-| Pending | Run #02: Unstructured Flattening | RAGAS Faithfulness | Scrambled paragraph segments caused hallucinations during generation. | Replaced standard loader with Docling spatial parser. |
-| Pending | Run #03: Quantized Inference | Latency vs. Perplexity | Base model exceeded normal parameter execution limits during active generation. | Configured fixed 4-bit quantization mappings with locked thread processing allocations. |
-| Pending | Run #04: Feedback Injection | Adherence Accuracy | Memory context drift bypassed late-stage prompt assertions. | Restructured the prompt topology to isolate user correction fields directly above the reference material context blocks. |
+### Full mode: parse the source PDFs again
+
+Use this mode after replacing or adding PDFs. It runs Docling layout analysis before cleaning, chunking, embedding, and storage, so it is slower.
+
+```powershell
+uv run python -m src.ingestion.ingestion_pipeline --loader pdf --dir docs/pdfs
+```
+
+The PDF loader writes Docling JSON to a `parsed_json` folder next to the input directory. For the command above, the generated files are placed in `docs/pdfs/parsed_json`. To ingest those generated JSON files without reparsing, run:
+
+```powershell
+uv run python -m src.ingestion.ingestion_pipeline --loader json --dir docs/pdfs/parsed_json
+```
+
+### Use a different input directory
+
+Both modes accept `--dir`:
+
+```powershell
+# Parse PDFs from another folder
+uv run python -m src.ingestion.ingestion_pipeline --loader pdf --dir path\to\pdfs
+
+# Load pre-parsed Docling JSON from another folder
+uv run python -m src.ingestion.ingestion_pipeline --loader json --dir path\to\parsed_json
+```
+
+At the end of a successful run, the pipeline prints the Qdrant collection status, point count, and a sample stored payload.
+
+## Run the chat application
+
+Run ingestion first, then start the Gradio chat UI:
+
+```powershell
+uv run python src/chat_ui.py
+```
+
+Gradio opens the application in a browser. Ask questions about the five indexed papers; the right-hand panel displays the retrieved source excerpts and metadata used for the answer.
+
+## Run the evaluation dashboard
+
+Ensure the Qdrant collection has been populated, then start the dashboard:
+
+```powershell
+uv run python src/eval_ui.py
+```
+
+The dashboard has two independent flows:
+
+1. **Retrieval evaluation** calculates MRR, nDCG, and keyword coverage for all questions in `src/evaluation/tests.jsonl`.
+2. **Answer evaluation** generates an answer for each question and uses the configured judge model to score accuracy, completeness, and relevance on a 1–5 scale.
+
+Answer evaluation makes external LLM calls and can take time and incur provider usage costs.
+
+### Run one evaluation question from the command line
+
+Use a one-based row number from `tests.jsonl`:
+
+```powershell
+uv run python src/evaluation/eval.py 1
+```
+
+## Generate the embedding-space visualization
+
+After ingestion, create or refresh the interactive Plotly visualization:
+
+```powershell
+uv run python src/vector_space_visualizer.py
+```
+
+The generated HTML file is written to `docs/embedding_space.html` by default. Change visualization settings such as 2D/3D mode or grouping in `src/config/settings.py`.
+
+## Operational notes
+
+- Re-running ingestion upserts deterministic chunk IDs, so existing chunks are updated instead of blindly duplicated.
+- Local Qdrant data persists under `local_qdrant` unless `QDRANT_LOCATION` is changed.
+- The current chat interface passes its conversation history to generation. The README does not claim a strict four-turn memory limit because that limit is not yet enforced in the UI layer.
+- The current implementation uses dense embeddings and a text-match candidate path. It does not yet implement a true BM25 index or reciprocal-rank fusion.
+- The final assignment report is a separate deliverable and should document architectural decisions, experiments, evaluation results, limitations, and future improvements.
+
+## Troubleshooting
+
+- **No retrieved context or Qdrant collection error:** Run the ingestion pipeline first and confirm that it reports stored points.
+- **Model download/authentication error:** Check your internet connection and `HF_TOKEN`; then rerun `uv sync` if dependencies are incomplete.
+- **LLM authentication or routing error:** Confirm `GOOGLE_API_KEY` and `OPENAI_API_KEY` are present in `.env` and that the configured models are available to your account.
+- **Embedding dimension error:** If you change `EMBEDDING_MODEL_NAME`, update `VECTOR_DIMENSION` and recreate the Qdrant collection before re-ingesting.
+- **Slow first run:** Initial model downloads and PDF parsing can take substantially longer than later runs using `--loader json`.
+
+## Assignment alignment
+
+| Assignment area | Repository support |
+| --- | --- |
+| Five-PDF ingestion | Included source corpus and Docling ingestion pipeline |
+| Vector database | Persistent local Qdrant collection |
+| Semantic retrieval | SentenceTransformer embeddings, retrieval, reranking, and context expansion |
+| Conversational interface | Gradio chat application |
+| Evaluation | 50-question test set with retrieval and answer-quality metrics |
+| Final report | To be submitted separately as a PDF deliverable |
+
+## License
+
+No license has been specified for this repository.
