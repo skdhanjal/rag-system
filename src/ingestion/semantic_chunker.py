@@ -1,10 +1,8 @@
-import copy
 from pathlib import Path
-import sys
 from typing import List
 from transformers import AutoTokenizer
 from docling.chunking import HybridChunker
-from typing import List, Dict, Any
+from typing import List
 
 import src.config.settings as config
 from src.schema.document import Document, DocumentMetadata
@@ -57,7 +55,6 @@ class SemanticChunker:
                     token_count = len(self.tokenizer.encode(enriched_text, add_special_tokens=False))
                 else:
                     token_count = len(enriched_text.split())
-
                 
                 # 1. Headings & Parent Section
                 headings_list = []
@@ -65,7 +62,7 @@ class SemanticChunker:
                 parent_section = "Unknown"
                 if hasattr(chunk, "meta") and chunk.meta and hasattr(chunk.meta, "headings") and chunk.meta.headings:
                     headings_list = chunk.meta.headings
-                    parent_section = headings_list[-1] if headings_list else "Unknown"
+                    parent_section = " > ".join(headings_list) if headings_list else "Unknown"
 
                 # 2. Page Tracking (First Page & All Spanned Pages)
                 first_page_num = 0
