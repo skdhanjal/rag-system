@@ -33,6 +33,15 @@ CHUNK_OVERLAP = 100
 # --- Conversation Memory Configuration ---
 MAX_CONVERSATION_TURNS = 4
 
+# --- Guardrail Configurations ---
+ENABLE_GUARDRAILS = True
+ENABLE_PROMPT_INJECTION_GUARDRAIL = True
+ENABLE_CONTEXT_SANITIZATION = True
+
+MIN_QUERY_CHARS = 3
+MAX_QUERY_CHARS = 2000
+MIN_RETRIEVAL_RESULTS = 1
+
 # --- Visualization Configurations ---
 # Canvas dimension options: "2D" or "3D"
 VISUALIZATION_DIMENSION = "2D"
