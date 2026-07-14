@@ -76,7 +76,7 @@ def create_ui(retriever: HybridRetriever):
 
             # Right column: Retrieved contexts
             with gr.Column(scale=1):
-                gr.Markdown("### Retrieved Contexts")
+                # gr.Markdown("### Retrieved Contexts")
                 contexts_display = gr.Markdown(
                     value="Retrieved contexts will appear here...",
                     height=600,

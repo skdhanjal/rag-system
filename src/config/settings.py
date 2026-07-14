@@ -51,16 +51,16 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
 
 # --- Retrieval & Reranking Configurations ---
 RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2" # ["BAAI/bge-reranker-v2-m3", "cross-encoder/ms-marco-MiniLM-L-6-v3"]
-RETRIEVAL_TOP_K = 20
-RERANK_TOP_K = 10
+RETRIEVAL_TOP_K = 10
+RERANK_TOP_K = 3
 
 # --- LLM Interface Configurations ---
 # Select the answer-generation provider: "ollama", "google", "openai", or "groq".
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 
 # Provider-specific model names can be overridden through environment variables.
 LLM_MODELS = {
-    "ollama": f"ollama/{os.getenv('OLLAMA_MODEL', 'llama3.2:1b')}",
+    "ollama": f"ollama/{os.getenv('OLLAMA_MODEL', 'llama3.2')}",
     "google": os.getenv("GOOGLE_MODEL", "gemini/gemini-3.1-flash-lite"),
     "openai": os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini"),
     "groq": f"groq/{os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')}",
@@ -75,6 +75,6 @@ LLM_TEMPERATURE = 0.1
 LLM_MAX_TOKENS = 2048
 
 # --- Router / Intent Classifier Settings ---
-LLM_CLASSIFIER_MODEL_NAME = LLM_MODELS[LLM_PROVIDER]
+LLM_CLASSIFIER_MODEL_NAME = "gemini/gemini-3.1-flash-lite"
 LLM_CLASSIFIER_TEMPERATURE = 0.0
 LLM_CLASSIFIER_MAX_TOKENS = 5

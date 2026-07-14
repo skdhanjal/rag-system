@@ -55,20 +55,21 @@ uv run python src/chat_ui.py
 - Internet access on the first run to download Docling and Hugging Face model assets
 - A running Ollama service for local generation, or API credentials for hosted models
 
-The checked-in settings currently use `openai/gpt-4o-mini` for answer generation and routing, and `gemini/gemini-3.1-flash-lite` as the answer-evaluation judge. The active answer provider can be changed without modifying retrieval code.
+The checked-in settings default to the `groq` provider with model `groq/openai/gpt-oss-120b` for answer generation and routing, and `gemini/gemini-3.1-flash-lite` as the answer-evaluation judge. The active answer provider can be changed without modifying retrieval code. Both Google and Groq API keys can be created without a paid subscription in most regions.
 
 Use the following as a starting `.env` file. Never commit this file or any API keys.
 
 ```dotenv
+
 # Current default answer-generation and routing provider
-LLM_PROVIDER=openai
-OPENAI_API_KEY=your_openai_api_key
+LLM_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key
 
 # Required by the configured LLM-as-a-judge answer evaluation
 GOOGLE_API_KEY=your_google_ai_api_key
 
 # Optional: local Ollama answer generation
-OLLAMA_MODEL=llama3.2:1b
+OLLAMA_MODEL=llama3.2
 OLLAMA_API_BASE=http://localhost:11434
 
 # Optional: Groq answer generation
@@ -92,7 +93,7 @@ Runtime configuration is centralised in [`src/config/settings.py`](src/config/se
 - `EMBEDDING_MODEL_NAME` and `VECTOR_DIMENSION` must match. The checked-in configuration uses `sentence-transformers/all-MiniLM-L6-v2` with 384 dimensions. `BAAI/bge-base-en-v1.5` with 768 dimensions is a tested alternative.
 - `TARGET_MAX_TOKENS` is the Docling HybridChunker limit; it is set to 500.
 - `QDRANT_LOCATION` controls persistent local storage. Set `QDRANT_URL` and `QDRANT_API_KEY` in `.env` for a remote Qdrant deployment.
-- `RETRIEVAL_TOP_K=20` controls initial candidates and `RERANK_TOP_K=10` controls the candidates retained after cross-encoder reranking.
+- `RETRIEVAL_TOP_K=10` controls initial candidates and `RERANK_TOP_K=3` controls the candidates retained after cross-encoder reranking.
 - `MAX_CONVERSATION_TURNS=4` limits the model memory window to the latest four completed exchanges.
 - `LLM_PROVIDER` selects `ollama`, `openai`, `google`, or `groq`. Provider model names can be overridden with the related environment variables.
 - `LLM_MAX_TOKENS=2048` and `LLM_TIMEOUT_SECONDS=60` control answer-generation length and request timeout.
@@ -155,7 +156,7 @@ To switch answer-generation providers, update `LLM_PROVIDER` in `.env` and resta
 ```dotenv
 # Local open-source model
 LLM_PROVIDER=ollama
-OLLAMA_MODEL=llama3.2:1b
+OLLAMA_MODEL=llama3.2
 
 # Hosted Groq model
 LLM_PROVIDER=groq
@@ -250,7 +251,7 @@ local_qdrant/                  Persistent local Qdrant data, created at runtime
 | Five-PDF ingestion | Included corpus and Docling PDF/JSON ingestion pipeline |
 | Vector database | Persistent local Qdrant collection |
 | Semantic retrieval | SentenceTransformer embeddings, cross-encoder reranking, and neighbour expansion |
-| Open-source LLM option | Local Ollama support with `llama3.2:1b` |
+| Open-source LLM option | Local Ollama support with `llama3.2` |
 | Conversational interface | Gradio chat application with four-turn model memory |
 | Evaluation | 50-question test set with retrieval and LLM-judge answer metrics |
 | Report and experiments | Pdf report plus saved evaluation and visualization artefacts |
