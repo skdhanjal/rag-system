@@ -28,10 +28,32 @@ class QueryRouter:
             r"^\s*(bye|goodbye|see\s+ya)\s*[!.,]?\s*$"
         ]
         self.compiled_patterns = [re.compile(p, re.IGNORECASE) for p in self.pure_chit_chat_patterns]
+        self.response_refinement_patterns = [
+            r"\b(shorter|brief|concise|summari[sz]e|compress)\b",
+            r"\b(rewrite|rephrase|simplify|format|convert)\b",
+            r"\b(in|within)\s+\d+\s*[-–]?\s*\d*\s*(lines?|sentences?|bullets?|points?)\b",
+            r"\b\d+\s*[-–]?\s*\d*\s*(lines?|sentences?|bullets?|points?)\b",
+            r"\b(as|into)\s+(bullet|bullets|table|paragraph|points?)\b",
+            r"\b(previous|above|last)\s+(answer|response|explanation)\b",
+        ]
+        self.compiled_refinement_patterns = [
+            re.compile(pattern, re.IGNORECASE) for pattern in self.response_refinement_patterns
+        ]
 
     def _matches_greetings_regex(self, query: str) -> bool:
         """Checks if the query is 100% just a standard greeting or chit-chat phrase."""
         return any(pattern.match(query) for pattern in self.compiled_patterns)
+
+    def is_response_refinement_request(self, query: str, chat_history: List[dict] = None) -> bool:
+        """Detect follow-ups that ask to rewrite or reformat the previous assistant answer."""
+        if not chat_history:
+            return False
+
+        has_previous_answer = any(message.get("role") == "assistant" for message in chat_history)
+        if not has_previous_answer:
+            return False
+
+        return any(pattern.search(query or "") for pattern in self.compiled_refinement_patterns)
 
     def resolve_query_intent(self, query: str, chat_history: List[dict] = None) -> Tuple[bool, Optional[str]]:
         """

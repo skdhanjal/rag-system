@@ -1,7 +1,7 @@
 import sys
 import torch
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -195,45 +195,120 @@ class HybridRetriever:
                 "Check the provider configuration and try again."
             )
 
-    def answer_query(self, query: str, chat_history: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, Any]]]:
-        """The principal interface consumed by your application layer."""
-        chat_history = retain_recent_completed_turns(chat_history)
+    def _refine_previous_answer(self, query: str, chat_history: List[Dict[str, str]]) -> str:
+        """Rewrite the previous assistant answer according to the latest user instruction."""
+        print(f"[Refinement Flow] Rewriting previous answer for follow-up request: '{query}'")
 
+        previous_answer = next(
+            (
+                message.get("content", "")
+                for message in reversed(chat_history)
+                if message.get("role") == "assistant"
+            ),
+            "",
+        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You revise the immediately previous assistant answer according to the user's latest "
+                    "formatting or style request. Use only the previous answer as source material. "
+                    "Do not add new facts, citations, or claims."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Previous answer:\n{previous_answer}\n\n"
+                    f"User refinement request:\n{query}\n\n"
+                    "Return only the revised answer."
+                ),
+            },
+        ]
+
+        return self._call_llm(messages)
+
+    def _get_pre_retrieval_response(
+        self,
+        query: str,
+        chat_history: List[Dict[str, str]],
+    ) -> Optional[Tuple[str, List[Dict[str, Any]]]]:
+        """Handle checks that can answer before retrieval is needed."""
         is_valid_query, guardrail_message = validate_user_query(query)
         if not is_valid_query:
             return guardrail_message, []
 
-        # Resolve routing and direct response in a single check/call
+        if self.router.is_response_refinement_request(query, chat_history):
+            print("[Refinement Flow] Follow-up formatting/summarization request detected. Skipping retrieval.")
+            answer = self._refine_previous_answer(query, chat_history)
+            is_valid_answer, guardrail_message = validate_llm_answer(answer)
+            if not is_valid_answer:
+                return guardrail_message, []
+            return answer, []
+
         requires_retrieval, direct_answer = self.router.resolve_query_intent(query, chat_history)
-        
         if not requires_retrieval:
             return direct_answer, []
-            
-        contexts = self.retrieve_context(query)
-        
-        print(f"Retrieved {len(contexts)} context blocks for query: '{query}'.")
-        
-        if not has_enough_retrieval_evidence(contexts):
-            return NO_EVIDENCE_MESSAGE, []
 
-        context_str = "\n\n---\n\n".join(
-            [f"📄 Source: {ctx['metadata'].get('source', 'Unknown')}\n📑 Section: {ctx['metadata'].get('parent_section', 'Unknown')}\n📖 Content:\n{ctx['content']}" for ctx in contexts]
-        )
+        return None
 
-        context_str = sanitize_retrieved_context(context_str)
-        system_instruction = get_academic_system_instruction(context_str)
+    def _build_context_prompt(self, contexts: List[Dict[str, Any]]) -> str:
+        """Build the source-aware context string used in the generation prompt."""
+        context_blocks = [
+            (
+                f"📄 Source: {ctx['metadata'].get('source', 'Unknown')}\n"
+                f"📑 Section: {ctx['metadata'].get('parent_section', 'Unknown')}\n"
+                f"📖 Content:\n{ctx['content']}"
+            )
+            for ctx in contexts
+        ]
+
+        return sanitize_retrieved_context("\n\n---\n\n".join(context_blocks))
+
+    def _build_generation_messages(
+        self,
+        query: str,
+        chat_history: List[Dict[str, str]],
+        contexts: List[Dict[str, Any]],
+    ) -> List[Dict[str, str]]:
+        """Create the final message list for grounded answer generation."""
+        system_instruction = get_academic_system_instruction(self._build_context_prompt(contexts))
 
         messages = [{"role": "system", "content": system_instruction}]
-        if chat_history:
-            messages.extend(chat_history)
+        messages.extend(chat_history)
         messages.append({"role": "user", "content": query})
+        return messages
 
+    def _generate_validated_answer(
+        self,
+        messages: List[Dict[str, str]],
+        contexts: List[Dict[str, Any]],
+    ) -> Tuple[str, List[Dict[str, Any]]]:
+        """Generate the answer and apply output guardrails."""
         answer = self._call_llm(messages)
         is_valid_answer, guardrail_message = validate_llm_answer(answer)
         if not is_valid_answer:
             return guardrail_message, contexts
 
         return answer, contexts
+
+    def answer_query(self, query: str, chat_history: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, Any]]]:
+        """The principal interface consumed by your application layer."""
+        chat_history = retain_recent_completed_turns(chat_history)
+
+        pre_retrieval_response = self._get_pre_retrieval_response(query, chat_history)
+        if pre_retrieval_response is not None:
+            return pre_retrieval_response
+
+        contexts = self.retrieve_context(query)
+        print(f"Retrieved {len(contexts)} context blocks for query: '{query}'.")
+
+        if not has_enough_retrieval_evidence(contexts):
+            return NO_EVIDENCE_MESSAGE, []
+
+        messages = self._build_generation_messages(query, chat_history, contexts)
+        return self._generate_validated_answer(messages, contexts)
 
 if __name__ == "__main__":
     print("\n--- Starting Clean Configured Retriever Integration Test ---")
