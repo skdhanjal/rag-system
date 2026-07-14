@@ -17,7 +17,6 @@ from src.prompts.prompts import get_academic_system_instruction
 import src.config.settings as config
 from src.retrieval.query_router import QueryRouter
 
-
 class HybridRetriever:
     def __init__(self):
         print("=== INITIALIZING CONFIG-DRIVEN RETRIEVAL ENGINE ===")
@@ -46,7 +45,7 @@ class HybridRetriever:
         self.reranker_model = CrossEncoder(
             config.RERANKER_MODEL_NAME, 
             device=self.device,
-            default_activation_function=torch.nn.Identity()
+            activation_fn=torch.nn.Identity()
         )
         print("Hybrid Retrieval Initialized.")
 

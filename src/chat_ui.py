@@ -56,9 +56,9 @@ def create_ui(retriever: HybridRetriever):
     
     theme = gr.themes.Soft(font=["Inter", "system-ui", "sans-serif"])
 
-    with gr.Blocks(title="RAG Chat Assistant", theme=theme) as demo:
-        gr.Markdown("# RAG Chat Assistant", elem_id="title")
-        gr.Markdown("Chat with your documents using Retrieval-Augmented Generation (RAG). Retrieved contexts appear on the right.")
+    with gr.Blocks(title="Research Assistant Chat", theme=theme) as demo:
+        gr.Markdown("# Research Assistant Chat", elem_id="title")
+        gr.Markdown("Ask questions about your research papers and explore retrieved context directly from the conversation pane.")
 
         with gr.Row():
             # Left column: Chat interface

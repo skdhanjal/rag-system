@@ -4,10 +4,9 @@ used by the retrieval and generation pipeline.
 """
 
 STATIC_GREETING_RESPONSE = """
-    Hello! I am your academic research assistant, specialized in analyzing the loaded 
-    literature on transformer architectures, natural language processing models, and deep learning 
-    research papers. I can help you extract technical definitions, compare training objectives, 
-    or synthesize findings directly from the documentation. What would you like to explore today?
+    Hello! I am your academic research assistant for transformer-based NLP literature. I can help you
+    explore topics such as transformer architecture, BERT, RoBERTa, language model learning, and
+    transfer learning by drawing on the loaded research papers. What would you like to investigate today?
 """.strip()
 
 ROUTER_SYSTEM_INSTRUCTION = """
