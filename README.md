@@ -12,6 +12,7 @@ This repository was created for the Generative AI Fundamentals assignment. The a
 - **Persistent vector search:** SentenceTransformer embeddings are stored in a local Qdrant collection with source metadata.
 - **Improved retrieval:** Dense semantic candidates and Qdrant text-match candidates are deduplicated, reranked by a cross-encoder, and expanded with the preceding and following chunks from the same paper.
 - **Conversational answers:** The Gradio chat application retains exactly the four most recent completed user/assistant turns for routing and answer generation, while leaving the complete transcript visible in the UI.
+- **Basic guardrails:** The chat flow validates user queries, blocks common prompt-injection attempts, checks that retrieval returned enough evidence, sanitizes instruction-like text inside retrieved context, and handles empty model responses safely.
 - **Configurable LLM providers:** Answer generation and routing can use local Ollama or hosted OpenAI, Google, and Groq models through LiteLLM configuration.
 - **Evaluation:** The separate Gradio dashboard measures retrieval quality and uses an LLM judge to assess generated answers against reference answers.
 - **Experiment artefacts:** Saved evaluation exports, embedding-space plots, extracted figures, parsed Docling JSON, and the print-ready report are included under `docs/`.
@@ -98,8 +99,22 @@ Runtime configuration is centralised in [`src/config/settings.py`](src/config/se
 - `LLM_PROVIDER` selects `ollama`, `openai`, `google`, or `groq`. Provider model names can be overridden with the related environment variables.
 - `LLM_MAX_TOKENS=2048` and `LLM_TIMEOUT_SECONDS=60` control answer-generation length and request timeout.
 - `LLM_AS_JUDGE_MODEL_NAME` selects the reference-answer-based evaluator.
+- `ENABLE_GUARDRAILS`, `MIN_QUERY_CHARS`, `MAX_QUERY_CHARS`, and `MIN_RETRIEVAL_RESULTS` control the lightweight runtime guardrails.
 
 If you change the embedding model or vector dimension, recreate the Qdrant collection and ingest the corpus again. Existing vectors cannot be reused across incompatible dimensions.
+
+## Runtime guardrails
+
+The chat flow includes basic deterministic guardrails in [`src/helpers/guardrails.py`](src/helpers/guardrails.py). These are intentionally simple and transparent:
+
+- invalid, empty, or oversized queries are rejected before routing;
+- common prompt-injection phrases such as attempts to reveal hidden prompts or override instructions are blocked;
+- follow-up requests that only ask to shorten, rewrite, or reformat the previous answer are handled as response refinements instead of fresh retrieval queries;
+- answer generation is skipped when retrieval does not return enough evidence;
+- retrieved context is sanitized before it is inserted into the system prompt;
+- empty LLM responses are replaced with a safe fallback message.
+
+These checks do not replace a full moderation or policy framework. They provide a practical first layer for this academic RAG application and keep the behavior easy to inspect in code.
 
 ## Ingest documents
 
@@ -217,6 +232,7 @@ The report compares chunk sizes, preprocessing, MiniLM and BGE-base embeddings, 
 src/
 |-- ingestion/                 PDF/JSON loading, cleaning, chunking, embeddings, Qdrant writes
 |-- retrieval/                 Query routing, candidate retrieval, reranking, context expansion
+|-- helpers/                   LLM helper, guardrails, and conversation-memory utilities
 |-- evaluation/                Test set, retrieval metrics, LLM-as-a-judge evaluation
 |-- config/                    Runtime models, paths, and retrieval settings
 |-- prompts/                   Chat and query-routing prompts
@@ -253,6 +269,7 @@ local_qdrant/                  Persistent local Qdrant data, created at runtime
 | Semantic retrieval | SentenceTransformer embeddings, cross-encoder reranking, and neighbour expansion |
 | Open-source LLM option | Local Ollama support with `llama3.2` |
 | Conversational interface | Gradio chat application with four-turn model memory |
+| Basic guardrails | Query validation, prompt-injection checks, evidence fallback, context sanitization, and empty-answer fallback |
 | Evaluation | 50-question test set with retrieval and LLM-judge answer metrics |
 | Report and experiments | Pdf report plus saved evaluation and visualization artefacts |
 
