@@ -5,14 +5,8 @@ from typing import List, Tuple, Any
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
-# Centralized path routing
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
-
 from src.schema.document import Document
 import src.config.settings as config
-
 
 class QdrantStore():
     def __init__(self):

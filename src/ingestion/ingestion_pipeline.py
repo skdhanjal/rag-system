@@ -1,13 +1,7 @@
 import sys
 from pathlib import Path
 from typing import Any, Optional
-
 from dotenv import load_dotenv
-
-# Centralized path routing for local run confirmation
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
     
 load_dotenv(override=True)
     
@@ -51,8 +45,6 @@ class IngestionPipeline:
         Executes the entire document preprocessing and database entry system lifecycle.
         """
         # directory_path defaults depend on loader_mode, so it's resolved here
-        # rather than in the signature -- config.PDF_DIR (raw PDFs) for "pdf",
-        # config.PARSED_JSON_DIR (parse_paper.py output) for "json".
         
         if directory_path is None:
             directory_path = str(

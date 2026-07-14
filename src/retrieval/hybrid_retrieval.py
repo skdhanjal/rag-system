@@ -11,10 +11,6 @@ from litellm.exceptions import Timeout as LiteLLMTimeout
 # Load environment variables at the top
 load_dotenv(override=True)
 
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
-
 from src.helpers.llm_helper import call_configured_llm
 from src.helpers.conversation_memory import retain_recent_completed_turns
 from src.prompts.prompts import get_academic_system_instruction

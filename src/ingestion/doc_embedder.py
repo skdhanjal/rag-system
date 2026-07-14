@@ -3,32 +3,16 @@ import torch
 from typing import List, Tuple
 import sys
 
-# Centralized path routing for local run confirmation
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
-
 from src.schema.document import Document
 import src.config.settings as config
 
-# Choose your backend library (SentenceTransformers is highly optimized for batching)
 from sentence_transformers import SentenceTransformer
 
 class HFDocEmbedder:
     def __init__(self):
-        # 1. Dynamically select the fastest available hardware accelerator
-        if torch.cuda.is_available():
-            self.device = "cuda"
-            self.torch_dtype = torch.float16  # Enable FP16 half-precision on Nvidia GPUs
-            print("🚀 Embedding Engine: CUDA GPU detected. Enabling FP16 acceleration.")
-        elif torch.backends.mps.is_available():
-            self.device = "mps"
-            self.torch_dtype = torch.float32  # CoreML/MPS handles FP32 better on Apple Silicon
-            print("🍏 Embedding Engine: Apple Silicon MPS detected.")
-        else:
-            self.device = "cpu"
-            self.torch_dtype = torch.float32
-            print("⚠️ [Warning] Embedding Engine: No GPU detected! Running on CPU will be extremely slow.")
+        """Initialize the HuggingFace embedding model for high-throughput vector generation."""
+        self.device = "cpu"
+        self.torch_dtype = torch.float32
 
         print(f"Loading embedding model: {config.EMBEDDING_MODEL_NAME}...")
         
@@ -52,7 +36,6 @@ class HFDocEmbedder:
         print(f"Encoding {len(texts_to_embed)} chunks via vector engine...")
         
         # 4. Compute embeddings using vector matrix multiplication (the speed engine)
-        # Optimal batch_size is usually 16 or 32 depending on your GPU VRAM
         dense_embeddings = self.model.encode(
             inputs=texts_to_embed,
             batch_size=batch_size,
@@ -71,7 +54,6 @@ class HFDocEmbedder:
     
 # =====================================================================
 # INDEPENDENT TEST BLOCK
-# Run this file directly via `python src/embeddings/embedding_generator.py`
 # =====================================================================
 if __name__ == "__main__":
     import sys

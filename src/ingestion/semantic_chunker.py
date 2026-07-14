@@ -5,11 +5,6 @@ from typing import List
 from transformers import AutoTokenizer
 from docling.chunking import HybridChunker
 from typing import List, Dict, Any
-from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
-
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
 
 import src.config.settings as config
 from src.schema.document import Document, DocumentMetadata
@@ -104,72 +99,10 @@ class SemanticChunker:
         print(f"Generated {len(valid_chunks)} token-safe hybrid chunks across all documents.")
         return valid_chunks
     
-    def create_chunks_from_md(self, markdown_docs: List[Dict[str, Any]]) -> List[Document]:
-        """
-        Takes raw markdown strings and splits them hierarchically by headers,
-        then recursively chunks them by length.
-        """
-        print(f"🔪 Chunking {len(markdown_docs)} markdown documents...")
-        
-        # 1. Split on Markdown headers to maintain structural hierarchy
-        headers_to_split_on = [
-            ("#", "Header 1"),
-            ("##", "Header 2"),
-            ("###", "Header 3"),
-        ]
-        
-        md_splitter = MarkdownHeaderTextSplitter(
-            headers_to_split_on=headers_to_split_on, 
-            strip_headers=False
-        )
-        
-        # 2. Refinement Phase: Token-aware splitter using the configured HuggingFace tokenizer
-        token_text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
-            tokenizer=self.tokenizer,
-            chunk_size=self.chunk_size,       # Measured in tokens now!
-            chunk_overlap=self.chunk_overlap,   # Measured in tokens now!
-        )
-
-        final_chunks = []
-        for doc in markdown_docs:
-            md_text = doc["content"]
-            source_file = doc["metadata"].get("source", "Unknown")
-            paper_name = source_file.replace(".md", "").replace(".pdf", "")
-            
-            # Step A: Split hierarchically by headers
-            header_splits = md_splitter.split_text(md_text)
-            
-            # Step B: Sub-split large sections by character limits
-            splits = token_text_splitter.split_documents(header_splits)
-            
-            for i, split in enumerate(splits):
-                # Reconstruct the section hierarchy for provenance
-                section_parts = []
-                for h in ["Header 1", "Header 2", "Header 3"]:
-                    if h in split.metadata:
-                        section_parts.append(split.metadata[h].strip())
-                
-                parent_section = " > ".join(section_parts) if section_parts else "General Content"
-                
-                metadata = DocumentMetadata(
-                    source=source_file,
-                    paper_name= paper_name,
-                    chunk_number= i + 1,
-                    parent_section=parent_section,
-                    page_number= 0,
-                    document_type="Research Paper",
-                    keywords=[],  # Leave empty unless populated by a later enrichment step
-                )
-                
-                final_chunks.append(Document(content=split.page_content, metadata=metadata))
-                
-        print(f"✅ Generated {len(final_chunks)} hierarchical chunks from Markdown.")
-        return final_chunks
-    
     
     # =====================================================================
 # INDEPENDENT TEST BLOCK
-# Run this file directly via `python src/chunking/semantic_chunker.py`
+# Run this file directly via `python src/ingestion/semantic_chunker.py`
 # =====================================================================
 if __name__ == "__main__":
     

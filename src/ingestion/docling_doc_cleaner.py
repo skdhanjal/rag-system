@@ -25,13 +25,6 @@ class DocumentCleaner:
         cleaned_docs = []
         for doc in documents:
             clean_doc = self._clean_document(doc)
-            
-            # markdown_text = clean_doc.export_to_markdown()
-            # clean_doc_path = Path("docs/clean-docs-v1")
-            # clean_doc_path.mkdir(parents=True, exist_ok=True)
-            # md_path = clean_doc_path / f"{Path(doc.name)}.md"
-            # md_path.write_text(markdown_text, encoding="utf-8")
-            
             cleaned_docs.append(clean_doc)
         return cleaned_docs
 
@@ -72,7 +65,7 @@ if __name__ == "__main__":
     try:
         from src.ingestion.docling_pdf_loader import DoclingPDFLoader
     except ImportError:
-        print("Could not import DoclingPDFLoader. Ensure it exists in src/loaders/")
+        print("Could not import DoclingPDFLoader. Ensure it exists in src/ingestion/")
         sys.exit(1)
 
     test_dir_path = project_root / "docs/pdfs"
