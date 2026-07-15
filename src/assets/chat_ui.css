@@ -1,0 +1,337 @@
+/* ============================================================
+   Research Assistant Chat — custom styles
+   Loaded via demo.launch(css_paths=...) in src/chat_ui.py
+   ============================================================ */
+
+:root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface-2: #f0efea;
+    --user-bubble: #ecebe4;
+    --border: #e7e5dd;
+    --border-soft: #efede6;
+    --text: #2b2a26;
+    --text-muted: #7c7970;
+    --accent: #c96442;
+    --accent-soft: rgba(201, 100, 66, 0.12);
+    --shadow: 0 1px 2px rgba(40, 35, 25, 0.05), 0 2px 8px rgba(40, 35, 25, 0.04);
+    --shadow-lg: 0 6px 24px rgba(40, 35, 25, 0.10);
+    --radius: 16px;
+    --radius-sm: 12px;
+    --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Dark mode is driven by Gradio's own `.dark` class (set by its theme system /
+   ?__theme=dark), NOT prefers-color-scheme — scoping here keeps background and
+   text switching together instead of desyncing. */
+.dark {
+    --bg: #17171a;
+    --surface: #202024;
+    --surface-2: #26262b;
+    --user-bubble: #2c2c32;
+    --border: #33333b;
+    --border-soft: #2a2a30;
+    --text: #ececea;
+    --text-muted: #9b9990;
+    --accent: #e08863;
+    --accent-soft: rgba(224, 136, 99, 0.16);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+* { box-sizing: border-box; }
+
+body, .gradio-container {
+    background: var(--bg) !important;
+    font-family: var(--font) !important;
+    color: var(--text) !important;
+}
+
+.gradio-container { max-width: 100% !important; padding: 0 !important; }
+/* Gradio caps its page wrapper at 1536px — lift it; #app-shell's max-width rules */
+.gradio-container .fillable, .gradio-container .app { max-width: 100% !important; }
+footer { display: none !important; }
+
+/* ---------- Shell ---------- */
+#app-shell {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 22px 36px 18px;
+    min-height: 100vh;
+    gap: 0 !important;
+}
+
+#app-header {
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    padding: 0 2px 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+}
+#header-text { flex: 1 1 auto !important; }
+#header-text h1 { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; color: var(--text); }
+#header-text p { color: var(--text-muted); font-size: 0.92rem; margin: 0; line-height: 1.45; }
+
+#main-row { gap: 22px !important; align-items: flex-start !important; }
+
+/* ---------- Chat column ----------
+   ROOT-CAUSE GUARD: Gradio's `.column` class ships `flex-wrap: wrap`. If a
+   column's children ever exceed its height (short window, browser zoom), a
+   wrapping flex column pushes the overflow into a SECOND column to the right —
+   which is how the input bar ended up floating over the context sidebar.
+   `nowrap` makes that failure mode impossible at any viewport size. */
+#app-shell, #chat-column, #context-sidebar { flex-wrap: nowrap !important; }
+
+#chat-column { min-width: 0; }
+
+#chatbot {
+    height: 68vh !important;
+    min-height: 420px !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+#chatbot .bubble-wrap, #chatbot .panel-wrap { height: 100% !important; max-height: none !important; }
+#chatbot .bubble-wrap { padding: 12px 8px !important; scroll-behavior: smooth; }
+
+/* Message rows: calm, stacked, full-width — no loud bubbles */
+#chatbot .message-row {
+    max-width: 100% !important;
+    padding: 5px 14px !important;
+    background: transparent !important;
+}
+/* Kill Gradio panel theme's row tints (pale blue user band / grey bot band) */
+#chatbot .message-row.user-row,
+#chatbot .message-row.bot-row,
+#chatbot .message-row.panel { background: transparent !important; }
+
+/* Gradio nests a second `.message` (panel-full-width) INSIDE each bubble, so an
+   unscoped `.message { padding }` applies twice and a one-word message balloons
+   to ~112px tall. Zero padding at the generic level; pad only the outer
+   role-scoped bubble. */
+#chatbot .message {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    line-height: 1.6 !important;
+    font-size: 0.95rem !important;
+    color: var(--text) !important;
+    animation: fadeIn 0.28s ease;
+}
+#chatbot .message .message { padding: 0 !important; }
+
+/* Per-message button rows sit INSIDE the bubble and inflate its height.
+   buttons=[] removes them; this is the belt-and-braces. The icon-button rule
+   also kills the stray hover actions (delete/retry) Gradio floats on bubbles. */
+#chatbot .message-buttons,
+#chatbot .icon-button-wrapper { display: none !important; }
+
+/* Assistant: plain, no fill — reads like a document */
+#chatbot .message.bot {
+    background: transparent !important;
+    padding: 4px 2px !important;
+    border-radius: 0 !important;
+}
+
+/* User: compact soft-neutral bubble hugging its text, right-aligned (ChatGPT
+   style: no avatar on the user side) */
+#chatbot .user-row .avatar-container { display: none !important; }
+#chatbot .message.user {
+    background: var(--user-bubble) !important;
+    padding: 9px 15px !important;
+    border-radius: 16px 16px 5px 16px !important;
+    width: fit-content !important;
+    max-width: 76% !important;
+    margin-left: auto !important;
+}
+
+#chatbot .message p { margin: 0 0 10px !important; }
+#chatbot .message p:last-child { margin-bottom: 0 !important; }
+#chatbot .message ul, #chatbot .message ol { margin: 6px 0 10px; padding-left: 20px; }
+#chatbot .message li { margin: 3px 0; }
+#chatbot .message pre {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border-soft) !important;
+    border-radius: 10px !important;
+    padding: 12px 14px !important;
+}
+#chatbot .message code { font-size: 0.86em; }
+#chatbot .message :not(pre) > code {
+    background: var(--accent-soft) !important;
+    color: var(--accent) !important;
+    padding: 1px 6px !important;
+    border-radius: 6px !important;
+}
+#chatbot .message h1, #chatbot .message h2, #chatbot .message h3 {
+    font-weight: 650; letter-spacing: -0.01em; margin: 14px 0 8px;
+}
+
+#chatbot .avatar-container {
+    width: 30px !important; height: 30px !important;
+    border: none !important; box-shadow: none !important;
+    background: transparent !important;
+    align-self: flex-start !important;
+    margin-top: 6px !important;
+}
+#chatbot .avatar-container img { border-radius: 50% !important; }
+
+/* Empty-state placeholder: centered both ways in the chat pane */
+#chatbot .placeholder-content,
+#chatbot .placeholder {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center;
+    opacity: 0.9;
+}
+#chatbot .placeholder h2 { color: var(--text) !important; font-weight: 650 !important; }
+#chatbot .placeholder p { color: var(--text-muted) !important; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Input ---------- */
+#input-row {
+    width: 100% !important;
+    margin-top: 14px;
+    gap: 8px !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 26px;
+    box-shadow: var(--shadow);
+    padding: 6px 8px 6px 20px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#input-row:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+}
+
+#user_input, #user_input > .wrap, #user_input .input-container { background: transparent !important; border: none !important; }
+#user_input textarea, #user_input input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--text) !important;
+    font-size: 0.97rem !important;
+    line-height: 1.5 !important;
+    padding: 9px 0 !important;
+    resize: none !important;
+}
+#user_input textarea::placeholder { color: var(--text-muted) !important; }
+#user_input textarea:focus, #user_input input:focus { outline: none !important; box-shadow: none !important; }
+
+#send_btn {
+    flex: 0 0 auto !important;
+    width: 40px !important; height: 40px !important; min-width: 40px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    background: var(--accent) !important;
+    color: #fff !important;
+    font-size: 1rem !important;
+    box-shadow: none !important;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+#send_btn:hover { transform: scale(1.05); filter: brightness(1.05); }
+#send_btn:active { transform: scale(0.97); }
+
+#clear_btn {
+    flex: 0 0 auto !important;
+    width: auto !important; min-width: 0 !important;
+    margin-bottom: 3px;
+    padding: 5px 14px !important;
+    border-radius: 999px !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    color: var(--text-muted) !important;
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+#clear_btn:hover { background: var(--surface-2) !important; color: var(--text) !important; }
+
+/* ---------- Context sidebar ---------- */
+#context-sidebar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0 20px 8px;
+    height: 68vh;
+    min-height: 420px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+/* Sticky: stays visible while the chunk list scrolls underneath.
+   overflow: visible kills the stray inner scrollbar Gradio's Markdown wrapper
+   adds when the sticky padding makes it taller than its computed box. */
+#context-title {
+    position: sticky !important;
+    top: 0;
+    z-index: 2;
+    background: var(--surface);
+    padding: 18px 0 12px !important;
+    margin: 0 0 6px !important;
+    border-bottom: 1px solid var(--border-soft);
+    overflow: visible !important;
+}
+#context-title > *, #context-title .prose { overflow: visible !important; max-height: none !important; }
+#context-title h3 {
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted) !important;
+    margin: 0 !important;
+}
+
+.ctx-empty { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; padding: 4px 2px; }
+
+.ctx-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: border-color 0.15s ease;
+}
+.ctx-card:hover { border-color: var(--border); }
+/* Card header: one unified accent breadcrumb — paper › section › chunk */
+.ctx-meta {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--accent);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+}
+.ctx-meta span { color: var(--accent) !important; font-weight: 600 !important; }
+.ctx-meta .ctx-sep { opacity: 0.45; font-weight: 400 !important; }
+.ctx-content { font-size: 0.855rem; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+
+/* ---------- Scrollbars ---------- */
+#chatbot *::-webkit-scrollbar, #context-sidebar::-webkit-scrollbar { width: 8px; }
+#chatbot *::-webkit-scrollbar-thumb, #context-sidebar::-webkit-scrollbar-thumb {
+    background: var(--border); border-radius: 8px;
+}
+#chatbot *::-webkit-scrollbar-thumb:hover, #context-sidebar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+#chatbot *::-webkit-scrollbar-track, #context-sidebar::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+    #main-row { flex-direction: column !important; }
+    #chat-column, #context-sidebar { height: auto !important; }
+    #chatbot { height: 58vh !important; }
+    #context-sidebar { max-height: 46vh; }
+}

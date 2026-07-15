@@ -248,6 +248,7 @@ class HybridRetriever:
             return answer, []
 
         requires_retrieval, direct_answer = self.router.resolve_query_intent(query, chat_history)
+        
         if not requires_retrieval:
             return direct_answer, []
 
@@ -257,9 +258,10 @@ class HybridRetriever:
         """Build the source-aware context string used in the generation prompt."""
         context_blocks = [
             (
-                f"📄 Source: {ctx['metadata'].get('source', 'Unknown')}\n"
-                f"📑 Section: {ctx['metadata'].get('parent_section', 'Unknown')}\n"
-                f"📖 Content:\n{ctx['content']}"
+                f"Source: {ctx['metadata'].get('source', 'Unknown')}\n"
+                f"Section: {ctx['metadata'].get('parent_section', 'Unknown')}\n"
+                f"Chunk: {ctx['metadata'].get('chunk_number', 'Unknown')}\n"
+                f"Content:\n{ctx['content']}"
             )
             for ctx in contexts
         ]
