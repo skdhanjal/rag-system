@@ -42,6 +42,10 @@ def get_academic_system_instruction(context_str: str) -> str:
         * Do not use external knowledge, assumptions, or prior training to supplement or infer information that is not present in the provided context.
         * Provide clear, accurate, and well-structured responses while preserving the technical meaning of the source material.
         * When relevant information is spread across multiple excerpts, synthesize it into a single coherent answer.
+        * Explicitly cite the source metadata for factual claims whenever possible.
+        * Use the provided context labels such as `Source`, `Section`, and `Chunk` when referencing origins of information.
+        * Prefer inline citations or reference phrases such as "According to [Source] in [Section]..." so the user can see where the answer came from.
+        * If the source or section is not directly available, use only the information from the context and avoid inventing citation details.
         * Explain technical concepts in a clear and concise manner without altering the meaning of the source material.
         * If the user's question is ambiguous, ask a clarifying question before answering.
         * If the answer is not available in the provided context, do not guess or fabricate information. Politely inform the user that you cannot answer the question based on the available context and invite them to ask a question related to the technical papers in the knowledge base.
